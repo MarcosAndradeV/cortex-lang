@@ -1,0 +1,7 @@
+[package]
+name = "cortex_parser"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+cortex_lexer = {path = "../cortex_lexer"}

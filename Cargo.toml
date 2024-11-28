@@ -1,0 +1,9 @@
+[workspace]
+
+members = [
+    "cortex",
+    "cortex_lexer",
+    "cortex_parser",
+]
+
+resolver = "2"
