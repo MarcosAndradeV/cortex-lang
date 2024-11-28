@@ -4,6 +4,7 @@ members = [
     "cortex",
     "cortex_lexer",
     "cortex_parser",
+    "cortex_analysis",
 ]
 
 resolver = "2"
