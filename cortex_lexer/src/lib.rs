@@ -50,6 +50,9 @@ impl TokenKind {
             _ => Self::Identifier,
         }
     }
+    pub fn is_eof(&self) -> bool {
+        *self == TokenKind::EOF
+    }
 }
 
 #[derive(Debug)]
