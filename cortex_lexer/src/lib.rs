@@ -256,3 +256,122 @@ impl Lexer {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct LexTester {
+        line: usize,
+        col: usize,
+    }
+    impl LexTester {
+        fn new() -> Self {
+            LexTester { line: 1, col: 1 }
+        }
+        fn gen_token(&self, kind: TokenKind, value: &str) -> Token {
+            Token {
+                loc: Loc::new(file!().to_string(), self.line, self.col),
+                kind,
+                value: value.to_string(),
+            }
+        }
+    }
+
+    #[test]
+    fn test_next_token_1() {
+        use TokenKind::*;
+        let input = "=+(){}".to_string();
+        let tlex = LexTester::new();
+        let tests = &[
+            tlex.gen_token(Assign, "="),
+            tlex.gen_token(Plus, "+"),
+            tlex.gen_token(Oparen, "("),
+            tlex.gen_token(Cparen, ")"),
+            tlex.gen_token(OBrace, "{"),
+            tlex.gen_token(CBrace, "}"),
+            tlex.gen_token(EOF, "\0"),
+        ];
+        let mut lex = Lexer::new(file!().to_string(), input);
+        for tt in tests {
+            assert_eq!(lex.next_token().kind, tt.kind)
+        }
+    }
+
+    #[test]
+    fn test_next_token_2() {
+        use TokenKind::*;
+        let input = r#"
+            x := 5;
+            y := 10;
+            x + y;
+            "#
+        .to_string();
+        let tlex = LexTester::new();
+        let tests = &[
+            tlex.gen_token(Identifier, "x"),
+            tlex.gen_token(Colon, ":"),
+            tlex.gen_token(Assign, "="),
+            tlex.gen_token(Interger, "5"),
+            tlex.gen_token(Semicolon, ";"),
+            tlex.gen_token(Identifier, "y"),
+            tlex.gen_token(Colon, ":"),
+            tlex.gen_token(Assign, "="),
+            tlex.gen_token(Interger, "5"),
+            tlex.gen_token(Semicolon, ";"),
+            tlex.gen_token(Identifier, "x"),
+            tlex.gen_token(Plus, "+"),
+            tlex.gen_token(Identifier, "y"),
+            tlex.gen_token(Semicolon, ";"),
+            tlex.gen_token(EOF, "\0"),
+        ];
+        let mut lex = Lexer::new(file!().to_string(), input);
+        for tt in tests {
+            assert_eq!(lex.next_token().kind, tt.kind)
+        }
+    }
+
+    #[test]
+    fn test_next_token_3() {
+        use TokenKind::*;
+        let input = r#"
+            !-/*5;
+            "#
+        .to_string();
+        let tlex = LexTester::new();
+        let tests = &[
+            tlex.gen_token(Bang, "!"),
+            tlex.gen_token(Minus, "-"),
+            tlex.gen_token(Slash, "/"),
+            tlex.gen_token(Star, "*"),
+            tlex.gen_token(Interger, "5"),
+            tlex.gen_token(Semicolon, ";"),
+            tlex.gen_token(EOF, "\0"),
+        ];
+        let mut lex = Lexer::new(file!().to_string(), input);
+        for tt in tests {
+            assert_eq!(lex.next_token().kind, tt.kind)
+        }
+    }
+
+    #[test]
+    fn test_next_token_4() {
+        use TokenKind::*;
+        let input = r#"
+            false != true;
+            "#
+        .to_string();
+        let tlex = LexTester::new();
+        let tests = &[
+            tlex.gen_token(False, "false"),
+            tlex.gen_token(NEq, "!="),
+            tlex.gen_token(True, "true"),
+            tlex.gen_token(Semicolon, ";"),
+            tlex.gen_token(EOF, "\0"),
+        ];
+        let mut lex = Lexer::new(file!().to_string(), input);
+        for tt in tests {
+            assert_eq!(lex.next_token().kind, tt.kind)
+        }
+    }
+}
