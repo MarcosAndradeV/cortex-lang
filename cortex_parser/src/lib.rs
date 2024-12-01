@@ -22,7 +22,7 @@ impl Parser {
         }
         self.peeked.as_ref().unwrap()
     }
-
+    //TODO: add Error type
     pub fn parse(&mut self) -> Result<ast::Program, ()> {
         let mut program = ast::Program::new();
         loop {
@@ -40,17 +40,22 @@ impl Parser {
     fn parse_stmt(&mut self, token: Token) -> Result<ast::Stmt, ()> {
         use TokenKind::*;
         match token.kind {
-            Identifier if self.peek_token_is(Assign) => self.parse_assign_stmt(token),
-            Return => self.parse_return_stmt(token),
-            _ => self.parse_expression_stmt(token),
+            Identifier if self.peek_token_is(Colon) => self.parse_assign_stmt(token),
+            // _ => self.parse_expression_stmt(token),
+            _ => {
+                eprintln!("{token} is not allowed on the top level");
+                Err(())
+            }
         }
     }
+
     fn peek_token_is(&mut self, kind: TokenKind) -> bool {
         self.peek_token().kind == kind
     }
+
     fn parse_expression_stmt(&mut self, token: Token) -> Result<ast::Stmt, ()> {
         let value = self.parse_expression(token, ast::Precedence::Lowest)?;
-        self.next_token();
+        self.skip_token(TokenKind::Semicolon);
         Ok(ast::Stmt::ExpressionStmt(value))
     }
 
@@ -127,33 +132,70 @@ impl Parser {
         ast::Precedence::infix_from_token_kind(kind)
     }
     fn parse_return_stmt(&mut self, token: Token) -> Result<ast::Stmt, ()> {
-        let Token {
-            kind: _,
-            value: _,
-            loc,
-        } = token;
+        let loc = token.loc;
         let mut value = ast::Expression::default();
         while !self.peek_token_is(TokenKind::Semicolon) {
             let token = self.next_token();
             value = self.parse_expression(token, ast::Precedence::Lowest)?;
         }
-        self.next_token();
+        self.skip_token(TokenKind::Semicolon);
         Ok(ast::Stmt::ReturnStmt(ast::ReturnStmt { loc, value }))
     }
     fn parse_assign_stmt(&mut self, token: Token) -> Result<ast::Stmt, ()> {
-        self.next_token();
-        let Token {
-            kind: _,
-            value: name,
-            loc,
-        } = token;
+        let name = token.value;
+        let loc = token.loc;
+
+        self.skip_token(TokenKind::Colon);
+
+        let typ = self.parse_cortextype()?;
+
+        self.skip_token(TokenKind::Assign);
+
         let mut value = ast::Expression::default();
+
         while !self.peek_token_is(TokenKind::Semicolon) {
             let token = self.next_token();
             value = self.parse_expression(token, ast::Precedence::Lowest)?;
         }
-        self.next_token();
 
-        Ok(ast::Stmt::AssignStmt(ast::AssignStmt { loc, name, value }))
+        self.skip_token(TokenKind::Semicolon);
+
+        Ok(ast::Stmt::AssignStmt(ast::AssignStmt {
+            loc,
+            name,
+            typ,
+            value,
+        }))
+    }
+
+    fn skip_token(&mut self, _kind: TokenKind) {
+        self.next_token();
+    }
+
+    fn parse_cortextype(&mut self) -> Result<ast::CortexType, ()> {
+        let ntoken = self.next_token();
+        match (ntoken.value.as_str(), ntoken.kind) {
+            ("int", TokenKind::Identifier) => Ok(ast::CortexType::Int),
+            _ => {
+                eprintln!("No impl");
+                return Err(());
+            }
+        }
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_assing() {
+        let mut p = Parser::new(Lexer::new(file!().into(), "x: int = 10;".into()));
+        let result = p.parse();
+        assert!(result.is_ok());
+        if let Ok(program) = result {
+            assert_eq!("Program {\n    x : int = 10\n}", &program.to_string());
+        }
     }
 }

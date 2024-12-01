@@ -55,12 +55,26 @@ impl fmt::Display for ReturnStmt {
 pub struct AssignStmt {
     pub loc: Loc,
     pub name: String,
+    pub typ: CortexType,
     pub value: Expression,
 }
 
 impl fmt::Display for AssignStmt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} = {}", self.name, self.value)
+        write!(f, "{} : {} = {}", self.name, self.typ, self.value)
+    }
+}
+
+#[derive(Debug)]
+pub enum CortexType {
+    Int
+}
+
+impl fmt::Display for CortexType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CortexType::Int => write!(f, "int"),
+        }
     }
 }
 
