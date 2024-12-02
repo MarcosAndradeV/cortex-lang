@@ -34,6 +34,7 @@ pub enum TokenKind {
     False,
     Nil,
     Return,
+    Do
 }
 
 impl TokenKind {
@@ -47,6 +48,7 @@ impl TokenKind {
             "false" => Self::False,
             "nil" => Self::Nil,
             "return" => Self::Return,
+            "do" => Self::Do,
             _ => Self::Identifier,
         }
     }
