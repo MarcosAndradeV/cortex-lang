@@ -281,4 +281,62 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn test_do_stmt() {
+        let mut p = Parser::new(Lexer::new(file!().into(), r#"
+        do {
+            x: int = 10;
+            x + 10;
+        }
+        "#.into()));
+        let result = p.parse();
+        assert!(result.is_ok());
+        if let Ok(program) = result {
+            assert_eq!(
+                "Program { do { x : int = 10;  (x + 10); } }",
+                &program.to_string()
+            );
+        }
+    }
+
+    #[test]
+    fn test_while_stmt() {
+        let mut p = Parser::new(Lexer::new(file!().into(), r#"
+        do {
+            x: int = 1;
+            while x < 10 {
+                x = x + 1;
+            }
+        }
+        "#.into()));
+        let result = p.parse();
+        assert!(result.is_ok());
+        if let Ok(program) = result {
+            assert_eq!(
+                "Program { do { x : int = 1;  while (x < 10) { x = (x + 1); } } }",
+                &program.to_string()
+            );
+        }
+    }
+
+    #[test]
+    fn test_if_stmt() {
+        let mut p = Parser::new(Lexer::new(file!().into(), r#"
+        do {
+            x: int = 1;
+            if x < 10 {
+                x;
+            }
+        }
+        "#.into()));
+        let result = p.parse();
+        assert!(result.is_ok());
+        if let Ok(program) = result {
+            assert_eq!(
+                "Program { do { x : int = 1;  if (x < 10) { x; } } }",
+                &program.to_string()
+            );
+        }
+    }
 }
