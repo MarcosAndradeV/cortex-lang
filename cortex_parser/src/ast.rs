@@ -4,16 +4,16 @@ use cortex_lexer::{Loc, Token, TokenKind};
 
 #[derive(Debug)]
 pub struct Program {
-    pub stmts: Vec<Stmt>,
+    pub stmts: Vec<TopLevelStmt>,
 }
 
 impl fmt::Display for Program {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let _ = write!(f, "Program {{");
+        write!(f, "Program {{")?;
         for stmt in &self.stmts {
-            let _ = write!(f, "\n    {stmt}");
+            write!(f, " {stmt} ")?;
         }
-        write!(f, "\n}}")
+        write!(f, "}}")
     }
 }
 impl Program {
@@ -23,31 +23,88 @@ impl Program {
 }
 
 #[derive(Debug)]
-pub enum Stmt {
-    AssignStmt(AssignStmt),
-    ReturnStmt(ReturnStmt),
-    ExpressionStmt(Expression),
+pub enum TopLevelStmt {
+    GlobalAssignStmt(AssignStmt),
+    DoStmt(DoStmt)
 }
 
-impl fmt::Display for Stmt {
+impl fmt::Display for TopLevelStmt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Stmt::AssignStmt(assign_stmt) => write!(f, "{assign_stmt}"),
-            Stmt::ReturnStmt(return_stmt) => write!(f, "{return_stmt}"),
-            Stmt::ExpressionStmt(expression) => write!(f, "{expression}"),
+            TopLevelStmt::GlobalAssignStmt(assign_stmt) => write!(f, "global {assign_stmt}"),
+            TopLevelStmt::DoStmt(do_stmt) => write!(f, "{do_stmt}"),
         }
     }
 }
 
 #[derive(Debug)]
-pub struct ReturnStmt {
+pub struct DoStmt {
     pub loc: Loc,
-    pub value: Expression,
+    pub body: Vec<Stmt>
 }
 
-impl fmt::Display for ReturnStmt {
+impl fmt::Display for DoStmt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "return {}", self.value)
+        write!(f, "do {{")?;
+        for stmt in &self.body {
+            write!(f, " {stmt} ")?;
+        }
+        write!(f, "}}")
+    }
+}
+
+#[derive(Debug)]
+pub enum Stmt {
+    AssignStmt(AssignStmt),
+    ReAssignStmt(ReAssignStmt),
+    ExpressionStmt(Expression),
+    IfStmt(IfStmt),
+    WhileStmt(WhileStmt),
+}
+
+impl fmt::Display for Stmt {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Stmt::AssignStmt(assign_stmt) => write!(f, "{assign_stmt};"),
+            Stmt::ReAssignStmt(reassign_stmt) => write!(f, "{reassign_stmt};"),
+            Stmt::ExpressionStmt(expression) => write!(f, "{expression};"),
+            Stmt::IfStmt(if_stmt) => write!(f, "{if_stmt}"),
+            Stmt::WhileStmt(while_stmt) => write!(f, "{while_stmt}"),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct WhileStmt {
+    pub loc: Loc,
+    pub cond: Expression,
+    pub body: Vec<Stmt>
+}
+
+impl fmt::Display for WhileStmt {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "while {} {{", self.cond)?;
+        for stmt in &self.body {
+            write!(f, " {stmt} ")?;
+        }
+        write!(f, "}}")
+    }
+}
+
+#[derive(Debug)]
+pub struct IfStmt {
+    pub loc: Loc,
+    pub cond: Expression,
+    pub body: Vec<Stmt>
+}
+
+impl fmt::Display for IfStmt {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "if {} {{", self.cond)?;
+        for stmt in &self.body {
+            write!(f, " {stmt} ")?;
+        }
+        write!(f, "}}")
     }
 }
 
@@ -62,6 +119,19 @@ pub struct AssignStmt {
 impl fmt::Display for AssignStmt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{} : {} = {}", self.name, self.typ, self.value)
+    }
+}
+
+#[derive(Debug)]
+pub struct ReAssignStmt {
+    pub loc: Loc,
+    pub name: String,
+    pub value: Expression,
+}
+
+impl fmt::Display for ReAssignStmt {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} = {}", self.name, self.value)
     }
 }
 

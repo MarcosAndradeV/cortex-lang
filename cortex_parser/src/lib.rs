@@ -30,22 +30,91 @@ impl Parser {
             if token.kind == TokenKind::EOF {
                 break;
             }
-            let stmt = self.parse_stmt(token)?;
+            let stmt = self.parse_top_level_stmt(token)?;
             program.stmts.push(stmt);
         }
 
         return Ok(program);
     }
 
-    fn parse_stmt(&mut self, token: Token) -> Result<ast::Stmt, ()> {
+    fn parse_top_level_stmt(&mut self, token: Token) -> Result<ast::TopLevelStmt, ()> {
         use TokenKind::*;
         match token.kind {
-            Identifier if self.peek_token_is(Colon) => self.parse_assign_stmt(token),
+            Identifier if self.peek_token_is(Colon) => Ok(ast::TopLevelStmt::GlobalAssignStmt(
+                self.parse_assign_stmt(token)?,
+            )),
+            Do => self.parse_do_stmt(token),
             // _ => self.parse_expression_stmt(token),
             _ => {
                 eprintln!("{token} is not allowed on the top level");
                 Err(())
             }
+        }
+    }
+
+    fn parse_do_stmt(&mut self, token: Token) -> Result<ast::TopLevelStmt, ()> {
+        let loc = token.loc;
+        self.skip_token(TokenKind::OBrace);
+        let mut body = vec![];
+        while !self.peek_token_is(TokenKind::CBrace) {
+            let token = self.next_token();
+            body.push(self.parse_stmt(token)?);
+        }
+        self.skip_token(TokenKind::CBrace);
+        Ok(ast::TopLevelStmt::DoStmt(ast::DoStmt{
+            loc,
+            body,
+        }))
+    }
+
+    fn parse_while_stmt(&mut self, token: Token) -> Result<ast::Stmt, ()> {
+        let loc = token.loc;
+        let token = self.next_token();
+        let cond = self.parse_expression(token, ast::Precedence::Lowest)?;
+        self.skip_token(TokenKind::OBrace);
+        let mut body = vec![];
+        while !self.peek_token_is(TokenKind::CBrace) {
+            let token = self.next_token();
+            body.push(self.parse_stmt(token)?);
+        }
+        self.skip_token(TokenKind::CBrace);
+        Ok(ast::Stmt::WhileStmt(ast::WhileStmt{
+            loc,
+            cond,
+            body,
+        }))
+    }
+
+    fn parse_if_stmt(&mut self, token: Token) -> Result<ast::Stmt, ()> {
+        let loc = token.loc;
+        let token = self.next_token();
+        let cond = self.parse_expression(token, ast::Precedence::Lowest)?;
+        self.skip_token(TokenKind::OBrace);
+        let mut body = vec![];
+        while !self.peek_token_is(TokenKind::CBrace) {
+            let token = self.next_token();
+            body.push(self.parse_stmt(token)?);
+        }
+        self.skip_token(TokenKind::CBrace);
+        Ok(ast::Stmt::IfStmt(ast::IfStmt{
+            loc,
+            cond,
+            body,
+        }))
+    }
+
+    fn parse_stmt(&mut self, token: Token) -> Result<ast::Stmt, ()> {
+        use TokenKind::*;
+        match token.kind {
+            Identifier if self.peek_token_is(Colon) => {
+                Ok(ast::Stmt::AssignStmt(self.parse_assign_stmt(token)?))
+            }
+            Identifier if self.peek_token_is(Assign) => {
+                Ok(ast::Stmt::ReAssignStmt(self.parse_reassign_stmt(token)?))
+            }
+            If => self.parse_if_stmt(token),
+            While => self.parse_while_stmt(token),
+            _ => self.parse_expression_stmt(token),
         }
     }
 
@@ -131,17 +200,7 @@ impl Parser {
     fn get_infix_precedence(&mut self, kind: &TokenKind) -> ast::Precedence {
         ast::Precedence::infix_from_token_kind(kind)
     }
-    fn parse_return_stmt(&mut self, token: Token) -> Result<ast::Stmt, ()> {
-        let loc = token.loc;
-        let mut value = ast::Expression::default();
-        while !self.peek_token_is(TokenKind::Semicolon) {
-            let token = self.next_token();
-            value = self.parse_expression(token, ast::Precedence::Lowest)?;
-        }
-        self.skip_token(TokenKind::Semicolon);
-        Ok(ast::Stmt::ReturnStmt(ast::ReturnStmt { loc, value }))
-    }
-    fn parse_assign_stmt(&mut self, token: Token) -> Result<ast::Stmt, ()> {
+    fn parse_assign_stmt(&mut self, token: Token) -> Result<ast::AssignStmt, ()> {
         let name = token.value;
         let loc = token.loc;
 
@@ -160,12 +219,34 @@ impl Parser {
 
         self.skip_token(TokenKind::Semicolon);
 
-        Ok(ast::Stmt::AssignStmt(ast::AssignStmt {
+        Ok(ast::AssignStmt {
             loc,
             name,
             typ,
             value,
-        }))
+        })
+    }
+
+    fn parse_reassign_stmt(&mut self, token: Token) -> Result<ast::ReAssignStmt, ()> {
+        let name = token.value;
+        let loc = token.loc;
+
+        self.skip_token(TokenKind::Assign);
+
+        let mut value = ast::Expression::default();
+
+        while !self.peek_token_is(TokenKind::Semicolon) {
+            let token = self.next_token();
+            value = self.parse_expression(token, ast::Precedence::Lowest)?;
+        }
+
+        self.skip_token(TokenKind::Semicolon);
+
+        Ok(ast::ReAssignStmt {
+            loc,
+            name,
+            value,
+        })
     }
 
     fn skip_token(&mut self, _kind: TokenKind) {
@@ -184,7 +265,6 @@ impl Parser {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -195,7 +275,10 @@ mod tests {
         let result = p.parse();
         assert!(result.is_ok());
         if let Ok(program) = result {
-            assert_eq!("Program {\n    x : int = 10\n}", &program.to_string());
+            assert_eq!(
+                "Program { global x : int = 10 }",
+                &program.to_string()
+            );
         }
     }
 }
